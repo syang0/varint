@@ -41,6 +41,62 @@ const uint64_t limit2  = offset2 + (1 << 19);
 static_assert(cut2 - cut1 == 64, "B0 provides 6 bits");
 static_assert(cut3 - cut2 == 8, "B0 provides 3 bits");
 
+/**
+ * Encodes a vector of 64-bit numbers into a char buffer.
+ * Note: For safety, ensure that the *out buffer is at least
+ * 2x the size of the input vector.
+ *
+ * \param in
+ *    Buffer of uint64_t's to compress
+ *
+ * \param[out] out
+ *    Buffer to write compressed data to
+ *
+ * \return
+ *    Numbers of bytes written to *out
+ */
+uint64_t lesqlite2_encode2(const vector<uint64_t> &in, char *out) {
+  char *orig_out = out;
+
+  for (uint64_t x : in) {
+    if (x < cut1) {
+      // 1 byte.
+      *out = 0xff & x;
+      ++out;
+    } else if (x < limit1) {
+      // 2 bytes encode 14 bits.
+      x -= offset1;
+      *out = 0xff & (cut1 + (x >> 8));
+      ++out;
+      *out = x & 0xff;
+      ++out;
+    } else if (x < limit2) {
+      // 3 bytes encode 19 bits.
+      x -= offset2;
+      *out = cut2 + (x >> 16);
+      ++out;
+      // Next 2 bytes in little-endian.
+      *out = (x & 0xff);
+      ++out;
+      x >>= 8;
+      *out = x & 0xff;
+      ++out;
+    } else {
+      // 4-9 bytes, no offset.
+      unsigned bits = 64 - count_leading_zeros_64(x);
+      unsigned bytes = (bits + 7) / 8;
+      *out = cut3 + (bytes - 3);
+      ++out;
+      for (unsigned n = 0; n < bytes; n++) {
+        *out = x & 0xff;
+        ++out;
+        x >>= 8;
+      }
+    }
+  }
+  return out - orig_out;
+}
+
 vector<uint8_t> lesqlite2_encode(const vector<uint64_t> &in) {
   vector<uint8_t> out;
   for (auto x : in) {

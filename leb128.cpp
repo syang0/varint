@@ -19,6 +19,33 @@
 
 using namespace std;
 
+/**
+ * Encodes a vector of 64-bit numbers into a char buffer.
+ * Note: For safety, ensure that the *out buffer is at least
+ * 2x the size of the input vector.
+ *
+ * \param in
+ *    Buffer of uint64_t's to compress
+ *
+ * \param[out] out
+ *    Buffer to write compressed data to
+ *
+ * \return
+ *    Numbers of bytes written to *out
+ */
+uint64_t leb128_encode2(const vector<uint64_t> &in, char *out) {
+  char *out_orig = out;
+  for (auto x : in) {
+    while (x > 127) {
+      *out = (x | 0x80);
+      ++out;
+      x >>= 7;
+    }
+    *out = (x);
+  }
+  return out - out_orig;
+}
+
 vector<uint8_t> leb128_encode(const vector<uint64_t> &in) {
   vector<uint8_t> out;
   for (auto x : in) {

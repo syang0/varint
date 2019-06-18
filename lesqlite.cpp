@@ -28,6 +28,50 @@ using namespace std;
 const unsigned cut1 = 185;
 const unsigned cut2 = 249;
 
+/**
+ * Encodes a vector of 64-bit numbers into a char buffer.
+ * Note: For safety, ensure that the *out buffer is at least
+ * 2x the size of the input vector.
+ *
+ * \param in
+ *    Buffer of uint64_t's to compress
+ *
+ * \param[out] out
+ *    Buffer to write compressed data to
+ *
+ * \return
+ *    Numbers of bytes written to *out
+ */
+uint64_t lesqlite_encode2(const vector<uint64_t> &in, char *out) {
+  char *out_orig = out;
+  for (auto x : in) {
+    if (x < cut1) {
+      // 1 byte.
+      *out = x;
+      ++out;
+    } else if (x <= cut1 + 255 + 256 * (cut2 - 1 - cut1)) {
+      // 2 bytes.
+      x -= cut1;
+      *out = (cut1 + (x >> 8));
+      ++out;
+      *out = (x & 0xff);
+      ++out;
+    } else {
+      // 3-9 bytes.
+      unsigned bits = 64 - count_leading_zeros_64(x);
+      unsigned bytes = (bits + 7) / 8;
+      *out = (cut2 + (bytes - 2));
+      ++out;
+      for (unsigned n = 0; n < bytes; n++) {
+        *out = (x & 0xff);
+        ++out;
+        x >>= 8;
+      }
+    }
+  }
+  return out - out_orig;
+}
+
 vector<uint8_t> lesqlite_encode(const vector<uint64_t> &in) {
   vector<uint8_t> out;
   for (auto x : in) {

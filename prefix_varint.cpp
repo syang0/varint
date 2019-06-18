@@ -19,6 +19,41 @@
 
 using namespace std;
 
+/**
+ * Encodes a vector of 64-bit numbers into a char buffer.
+ * Note: For safety, ensure that the *out buffer is at least
+ * 2x the size of the input vector.
+ *
+ * \param in
+ *    Buffer of uint64_t's to compress
+ *
+ * \param[out] out
+ *    Buffer to write compressed data to
+ *
+ * \return
+ *    Numbers of bytes written to *out
+ */
+uint64_t prefix_encode2(const vector<uint64_t> &in, char* out) {
+  char *out_orig = out;
+  for (auto x : in) {
+    unsigned bits = 64 - count_leading_zeros_64(x | 1);
+    unsigned bytes = 1 + (bits - 1) / 7;
+    if (bits > 56) {
+      *out = 0;
+      ++out;
+      bytes = 8;
+    } else {
+      x = (2 * x + 1) << (bytes - 1);
+    }
+    for (unsigned n = 0; n < bytes; n++) {
+      *out = (x & 0xff);
+      ++out;
+      x >>= 8;
+    }
+  }
+  return out - out_orig;
+}
+
 vector<uint8_t> prefix_encode(const vector<uint64_t> &in) {
   vector<uint8_t> out;
   for (auto x : in) {
