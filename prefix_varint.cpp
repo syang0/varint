@@ -33,8 +33,8 @@ using namespace std;
  * \return
  *    Numbers of bytes written to *out
  */
-uint64_t prefix_encode2(const vector<uint64_t> &in, char* out) {
-  char *out_orig = out;
+uint64_t prefix_encode2(const vector<uint64_t> &in, uint8_t* out) {
+  uint8_t *out_orig = out;
   for (auto x : in) {
     unsigned bits = 64 - count_leading_zeros_64(x | 1);
     unsigned bytes = 1 + (bits - 1) / 7;
@@ -99,5 +99,5 @@ void prefix_decode(const uint8_t *in, uint64_t *out, size_t count) {
 }
 
 const codec_descriptor prefix_codec = {
-    .name = "PrefixVarint", .encoder = prefix_encode, .decoder = prefix_decode,
+    .name = "PrefixVarint", .encoder = prefix_encode2, .decoder = prefix_decode,
 };

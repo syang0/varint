@@ -88,25 +88,26 @@ double measure_decode(const uint8_t *in, vector<uint64_t> &out, decoder_func fun
 }
 
 double do_codec(const codec_descriptor &codec,
-                const vector<uint64_t> &numbers)
+                const vector<uint64_t> &numbers,
+                uint8_t *scratch)
 {
-  vector<uint64_t> buffer(numbers.size());
+  vector<uint64_t> decompressed(numbers.size());
 
   using namespace chrono;
   auto before = high_resolution_clock::now();
-  auto encoded = codec.encoder(numbers);
+  uint64_t encodedSize = codec.encoder(numbers, scratch);
   auto after = high_resolution_clock::now();
-  double secs = duration_cast<nanoseconds>(after - before).count();
+  double encode_secs = duration_cast<nanoseconds>(after - before).count()/1.0e9;
 
 
-  double dtime = time_decode(encoded.data(), buffer, codec.decoder);
-  assert(buffer == numbers);
+  double dtime = time_decode(scratch, decompressed, codec.decoder);
+  assert(decompressed == numbers);
 
-  printf("%-15s: %.3f bytes/integer, encode speed: %3f B/s, decode speed %3f MB/s\r\n",
+  printf("%-15s: %.3f bytes/integer, encode speed: %.2f MB/s, decode speed %.2f MB/s\r\n",
             codec.name,
-            double(encoded.size()) / numbers.size(),
-            (sizeof(uint64_t)*numbers.size()/(1.0*secs)),
-            (encoded.size()/(dtime))/1.0e6);
+            double(encodedSize) / numbers.size(),
+            (sizeof(uint64_t)*numbers.size()/encode_secs)/1.0e6,
+            (encodedSize/(dtime))/1.0e6);
 
   return dtime;
 }
@@ -122,10 +123,18 @@ int main(int argc, const char *argv[]) {
     printf("Generated %zu log-uniform integers.\n", numbers.size());
   }
 
-  double leb128 = do_codec(leb128_codec, numbers);
-  double prefix = do_codec(prefix_codec, numbers);
-  double sqlite = do_codec(lesqlite_codec, numbers);
-  double sqlite2 = do_codec(lesqlite2_codec, numbers);
+  // Allocate an output buffer 2x the size of our input numbers
+  uint8_t *scratch = static_cast<uint8_t*>(std::malloc(2*sizeof(uint64_t)*numbers.size()));
+  if (scratch == nullptr) {
+    printf("Could not allocate a temporary buffer of size %lu bytes\r\n",
+              2*sizeof(uint64_t)*numbers.size());
+    exit(1);
+  }
+
+  double leb128 = do_codec(leb128_codec, numbers, scratch);
+  double prefix = do_codec(prefix_codec, numbers, scratch);
+  double sqlite = do_codec(lesqlite_codec, numbers, scratch);
+  double sqlite2 = do_codec(lesqlite2_codec, numbers, scratch);
 
   // printf("T(LEB128) / T(PrefixVarint) = %.3f.\n", leb128 / prefix);
   // printf("T(LEB128) / T(leSQLite) = %.3f.\n", leb128 / sqlite);

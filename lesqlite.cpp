@@ -42,8 +42,8 @@ const unsigned cut2 = 249;
  * \return
  *    Numbers of bytes written to *out
  */
-uint64_t lesqlite_encode2(const vector<uint64_t> &in, char *out) {
-  char *out_orig = out;
+uint64_t lesqlite_encode2(const vector<uint64_t> &in, uint8_t *out) {
+  uint8_t *out_orig = out;
   for (auto x : in) {
     if (x < cut1) {
       // 1 byte.
@@ -114,5 +114,5 @@ void lesqlite_decode(const uint8_t *in, uint64_t *out, size_t count) {
 }
 
 const codec_descriptor lesqlite_codec = {
-    .name = "leSQLite", .encoder = lesqlite_encode, .decoder = lesqlite_decode,
+    .name = "leSQLite", .encoder = lesqlite_encode2, .decoder = lesqlite_decode,
 };

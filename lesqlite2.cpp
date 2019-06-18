@@ -55,8 +55,8 @@ static_assert(cut3 - cut2 == 8, "B0 provides 3 bits");
  * \return
  *    Numbers of bytes written to *out
  */
-uint64_t lesqlite2_encode2(const vector<uint64_t> &in, char *out) {
-  char *orig_out = out;
+uint64_t lesqlite2_encode2(const vector<uint64_t> &in, uint8_t *out) {
+  uint8_t *orig_out = out;
 
   for (uint64_t x : in) {
     if (x < cut1) {
@@ -152,5 +152,5 @@ void lesqlite2_decode(const uint8_t *in, uint64_t *out, size_t count) {
 }
 
 const codec_descriptor lesqlite2_codec = {
-    .name = "leSQLite2", .encoder = lesqlite2_encode, .decoder = lesqlite2_decode,
+    .name = "leSQLite2", .encoder = lesqlite2_encode2, .decoder = lesqlite2_decode,
 };

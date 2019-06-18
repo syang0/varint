@@ -15,7 +15,7 @@
 #include <cstdint>
 #include <vector>
 
-typedef std::vector<uint8_t> (*encoder_func)(const std::vector<uint64_t>& in);
+typedef uint64_t (*encoder_func)(const std::vector<uint64_t>& in, uint8_t* out);
 typedef void (*decoder_func)(const uint8_t* in, uint64_t* out, size_t count);
 
 struct codec_descriptor {

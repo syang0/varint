@@ -33,8 +33,8 @@ using namespace std;
  * \return
  *    Numbers of bytes written to *out
  */
-uint64_t leb128_encode2(const vector<uint64_t> &in, char *out) {
-  char *out_orig = out;
+uint64_t leb128_encode2(const vector<uint64_t> &in, uint8_t *out) {
+  uint8_t *out_orig = out;
   for (auto x : in) {
     while (x > 127) {
       *out = (x | 0x80);
@@ -42,6 +42,7 @@ uint64_t leb128_encode2(const vector<uint64_t> &in, char *out) {
       x >>= 7;
     }
     *out = (x);
+    ++out;
   }
   return out - out_orig;
 }
@@ -80,5 +81,5 @@ void leb128_decode(const uint8_t *in, uint64_t *out, size_t count) {
 }
 
 const codec_descriptor leb128_codec = {
-    .name = "LEB128", .encoder = leb128_encode, .decoder = leb128_decode,
+    .name = "LEB128", .encoder = leb128_encode2, .decoder = leb128_decode,
 };
