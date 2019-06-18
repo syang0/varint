@@ -1,0 +1,3 @@
+[submodule "NanoLog"]
+	path = NanoLog
+	url = git@github.com:PlatformLab/NanoLog.git

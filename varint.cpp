@@ -29,7 +29,7 @@ using namespace std;
 vector<uint64_t> gen_log_uniform() {
 
   // How many uint64_t numbers in the vector we're compressing.
-  const size_t N = 1000000;
+  const size_t N = 10000000;
 
   // Maximum significant bits in the log-uniform random numbers.
   const unsigned random_bits = 64;
@@ -83,10 +83,6 @@ double time_decode(const uint8_t *in, vector<uint64_t> &out, decoder_func func,
   return secs/1.0e9;
 }
 
-double measure_decode(const uint8_t *in, vector<uint64_t> &out, decoder_func func) {
-  return time_decode(in, out, func, 1);;
-}
-
 double do_codec(const codec_descriptor &codec,
                 const vector<uint64_t> &numbers,
                 uint8_t *scratch)
@@ -103,7 +99,7 @@ double do_codec(const codec_descriptor &codec,
   double dtime = time_decode(scratch, decompressed, codec.decoder);
   assert(decompressed == numbers);
 
-  printf("%-15s: %.3f bytes/integer, encode speed: %.2f MB/s, decode speed %.2f MB/s\r\n",
+  printf("%-15s: %10.2f %10.02f %10.2f\r\n",
             codec.name,
             double(encodedSize) / numbers.size(),
             (sizeof(uint64_t)*numbers.size()/encode_secs)/1.0e6,
@@ -113,7 +109,8 @@ double do_codec(const codec_descriptor &codec,
 }
 
 int main(int argc, const char *argv[]) {
-  vector<uint64_t> numbers;
+  // stores input and output numbers
+  vector<uint64_t> numbers, decompressed;
 
   if (argc == 2) {
     numbers = read_test_vector(argv[1]);
@@ -131,10 +128,13 @@ int main(int argc, const char *argv[]) {
     exit(1);
   }
 
+  printf("#%-14s %10s %10s %10s\r\n", "Algorithm", "bytes/int", "Encode MB/s", "Decode MB/s");
+  do_codec(leb128_codec, numbers, scratch);
   double leb128 = do_codec(leb128_codec, numbers, scratch);
   double prefix = do_codec(prefix_codec, numbers, scratch);
   double sqlite = do_codec(lesqlite_codec, numbers, scratch);
   double sqlite2 = do_codec(lesqlite2_codec, numbers, scratch);
+  double nanolog = do_codec(nanolog_codec, numbers, scratch);
 
   // printf("T(LEB128) / T(PrefixVarint) = %.3f.\n", leb128 / prefix);
   // printf("T(LEB128) / T(leSQLite) = %.3f.\n", leb128 / sqlite);
