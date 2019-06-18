@@ -73,7 +73,7 @@ vector<uint64_t> read_test_vector(const char *filename) {
 }
 
 double time_decode(const uint8_t *in, vector<uint64_t> &out, decoder_func func,
-                   unsigned repetitions) {
+                   unsigned repetitions=1) {
   using namespace chrono;
   auto before = high_resolution_clock::now();
   for (unsigned n = 0; n < repetitions; n++)
@@ -98,16 +98,15 @@ double do_codec(const codec_descriptor &codec,
   auto after = high_resolution_clock::now();
   double secs = duration_cast<nanoseconds>(after - before).count();
 
-  printf("%s: %.3f bytes/integer at %.3f MB/s.\n", codec.name,
-         double(encoded.size()) / numbers.size(),
-         (sizeof(uint64_t)*numbers.size()/(1.0*secs)));
-  fflush(stdout);
 
-  double dtime = measure_decode(encoded.data(), buffer, codec.decoder);
+  double dtime = time_decode(encoded.data(), buffer, codec.decoder);
   assert(buffer == numbers);
 
-  printf("%s: decoded in %.3e secs (%.3f MB/s input speed).\n",
-          codec.name, dtime, (encoded.size()/(dtime))/1.0e6);
+  printf("%-15s: %.3f bytes/integer, encode speed: %3f B/s, decode speed %3f MB/s\r\n",
+            codec.name,
+            double(encoded.size()) / numbers.size(),
+            (sizeof(uint64_t)*numbers.size()/(1.0*secs)),
+            (encoded.size()/(dtime))/1.0e6);
 
   return dtime;
 }
@@ -128,7 +127,7 @@ int main(int argc, const char *argv[]) {
   double sqlite = do_codec(lesqlite_codec, numbers);
   double sqlite2 = do_codec(lesqlite2_codec, numbers);
 
-  printf("T(LEB128) / T(PrefixVarint) = %.3f.\n", leb128 / prefix);
-  printf("T(LEB128) / T(leSQLite) = %.3f.\n", leb128 / sqlite);
-  printf("T(LEB128) / T(leSQLite2) = %.3f.\n", leb128 / sqlite2);
+  // printf("T(LEB128) / T(PrefixVarint) = %.3f.\n", leb128 / prefix);
+  // printf("T(LEB128) / T(leSQLite) = %.3f.\n", leb128 / sqlite);
+  // printf("T(LEB128) / T(leSQLite2) = %.3f.\n", leb128 / sqlite2);
 }
