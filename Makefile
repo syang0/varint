@@ -1,12 +1,12 @@
 
-CXXFLAGS+=-std=c++14 -O3
+CXXFLAGS+=-std=c++14 -O3 -g
 CPPFLAGS+=-MMD
 
 test: varint
 	./varint
 
 varint: $(patsubst %.cpp,%.o,$(wildcard *.cpp))
-	$(CXX) -o $@ $^
+	$(CXX) -o $@ $^ -lz
 
 clean:
 	$(RM) *.o *.d varint

@@ -20,6 +20,8 @@
 #include <cstdlib>
 #include <random>
 
+#include "zlib.h"
+
 #include "compiler.h"
 #include "varint.h"
 
@@ -51,7 +53,7 @@ vector<uint64_t> gen_log_uniform(int minBits = 0, int maxBits=64) {
 
 // Stores the benchmark result of a single algorithm for a single run
 struct TestResult {
-  const char *algorithmName;
+  std::string algorithmName;
   double encodeSecs;
   double decodeSecs;
   uint64_t inputBytes;
@@ -130,6 +132,44 @@ TestResult do_codec(const codec_descriptor &codec,
   return {codec.name, encode_secs, dtime, sizeof(numbers.front())*numbers.size(), encodedSize};
 }
 
+/**
+ * Compresses an array of numbers using libz's
+ *
+ * \param numbers
+ *    Input compression array
+ * \param input bytes
+ *    bytes to read from numbers array
+ * \param scratch
+ *    Output buffer
+ * \param outputBytes
+ *    Bytes allocated for the output array
+ * \param level
+ *    gzip compression level [0,9]
+ */
+TestResult do_libz(const uint64_t *numbers,
+                      size_t inputBytes,
+                      uint8_t *scratch,
+                      size_t outputBytes,
+                      int level)
+{
+  uint64_t compressedSize = outputBytes;
+  compress2(scratch, &compressedSize,
+              reinterpret_cast<const Bytef*>(numbers), inputBytes,
+              level); // Warmup decode
+
+  using namespace chrono;
+  auto before = high_resolution_clock::now();
+  compressedSize = outputBytes;
+  compress2(scratch, &compressedSize,
+              reinterpret_cast<const Bytef*>(numbers), inputBytes,
+              level); // Warmup decode
+  auto after = high_resolution_clock::now();
+  double encode_secs = duration_cast<nanoseconds>(after - before).count()/1.0e9;
+
+  std::string name = "gzip-" + std::to_string(level);
+  return {name, encode_secs, 0.0, inputBytes, compressedSize};
+}
+
 void printResults(std::vector<TestSuite> tests) {
   printf("\r\n# Compressing 64-bit numbers with uniform random bits between n and m\r\n");
   printf("# Each column represent \"input speed (MB/s)\"\r\n");
@@ -139,7 +179,7 @@ void printResults(std::vector<TestSuite> tests) {
   printf("\r\n");
 
   for (int j = 0; j < tests.front().results.size(); ++j) {
-    printf("%-16s", tests.front().results[j].algorithmName);
+    printf("%-16s", tests.front().results[j].algorithmName.c_str());
     for (int i = 0; i < tests.size(); ++i) {
       TestResult results = tests[i].results[j];
       printf(" %8.2f", results.inputBytes/(1.0e6*results.encodeSecs));
@@ -156,7 +196,7 @@ void printResults(std::vector<TestSuite> tests) {
   printf("\r\n");
 
   for (int j = 0; j < tests.front().results.size(); ++j) {
-    printf("%-16s", tests.front().results[j].algorithmName);
+    printf("%-16s", tests.front().results[j].algorithmName.c_str());
     for (int i = 0; i < tests.size(); ++i) {
       TestResult results = tests[i].results[j];
       printf(" %8.2f", results.outputBytes/(1.0*N));
@@ -178,10 +218,11 @@ int main(int argc, const char *argv[]) {
   }
 
   // Allocate an output buffer 2x the size of our input numbers
-  uint8_t *scratch = static_cast<uint8_t*>(std::malloc(2*sizeof(uint64_t)*numbers.size()));
+  size_t allocSize = 2*sizeof(uint64_t)*numbers.size();
+  uint8_t *scratch = static_cast<uint8_t*>(std::malloc(allocSize));
   if (scratch == nullptr) {
     printf("Could not allocate a temporary buffer of size %lu bytes\r\n",
-              2*sizeof(uint64_t)*numbers.size());
+              allocSize);
     exit(1);
   }
 
@@ -197,6 +238,8 @@ int main(int argc, const char *argv[]) {
     randomRun.push_back(do_codec(lesqlite2_codec, numbers, scratch));
     randomRun.push_back(do_codec(lesqlite_codec, numbers, scratch));
     randomRun.push_back(do_codec(nanolog_codec, numbers, scratch));
+    randomRun.push_back(do_libz(numbers.data(), numbers.size()*sizeof(numbers.front()), scratch, allocSize, 1));
+    randomRun.push_back(do_libz(numbers.data(), numbers.size()*sizeof(numbers.front()), scratch, allocSize, 9));
     randomUpTo.push_back({0, i,randomRun});
   }
 
@@ -212,6 +255,8 @@ int main(int argc, const char *argv[]) {
     randomRun.push_back(do_codec(lesqlite2_codec, numbers, scratch));
     randomRun.push_back(do_codec(lesqlite_codec, numbers, scratch));
     randomRun.push_back(do_codec(nanolog_codec, numbers, scratch));
+    randomRun.push_back(do_libz(numbers.data(), numbers.size()*sizeof(numbers.front()), scratch, allocSize, 1));
+    randomRun.push_back(do_libz(numbers.data(), numbers.size()*sizeof(numbers.front()), scratch, allocSize, 9));
 
     randomBetween.push_back({i-8, i, randomRun});
   }
