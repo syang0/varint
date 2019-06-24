@@ -65,7 +65,7 @@ void nanolog_decode(const uint8_t *in_orig, uint64_t *out, size_t count)
     using namespace BufferUtils;
 
     size_t roundedSize = 2*(count/2);
-    const char *in = reinterpret_cast<const char*>(in);
+    const char *in = reinterpret_cast<const char*>(in_orig);
 
     for (int i = 0; i < roundedSize; i += 2) {
         const TwoNibbles *nibbles = reinterpret_cast<const TwoNibbles*>(in);
