@@ -25,6 +25,9 @@
 
 using namespace std;
 
+// How many uint64_t numbers in the vector we're compressing.
+const size_t N = 10000000;
+
 /**
  * Generate n log-uniform random numbers with maximum value
  * equal to 2^maxBits
@@ -36,10 +39,6 @@ using namespace std;
  *
  */
 vector<uint64_t> gen_log_uniform(int minBits = 0, int maxBits=64) {
-
-  // How many uint64_t numbers in the vector we're compressing.
-  const size_t N = 10000000;
-
   default_random_engine gen;
   uniform_real_distribution<double> dist(minBits * log(2), maxBits * log(2));
   vector<uint64_t> vec;
@@ -101,7 +100,7 @@ double time_decode(const uint8_t *in, vector<uint64_t> &out, decoder_func func,
   for (unsigned n = 0; n < repetitions; n++)
     func(in, out.data(), out.size());
   auto after = high_resolution_clock::now();
-  double secs = duration_cast<nanoseconds>(after - before).count();
+  double secs = duration_cast<nanoseconds>(after - before).count()/repetitions;
   return secs/1.0e9;
 }
 
@@ -133,19 +132,34 @@ TestResult do_codec(const codec_descriptor &codec,
 
 void printResults(std::vector<TestSuite> tests) {
   printf("\r\n# Compressing 64-bit numbers with uniform random bits between n and m\r\n");
-  printf("# Each column represent \"speed (MB/s)\"\r\n");
+  printf("# Each column represent \"input speed (MB/s)\"\r\n");
   printf("#%-15s", "Algo / bits");
   for (TestSuite tr : tests)
     printf("  %2d - %2d", tr.minBits, tr.maxBits);
   printf("\r\n");
 
-
   for (int j = 0; j < tests.front().results.size(); ++j) {
-
     printf("%-16s", tests.front().results[j].algorithmName);
     for (int i = 0; i < tests.size(); ++i) {
       TestResult results = tests[i].results[j];
       printf(" %8.2f", results.inputBytes/(1.0e6*results.encodeSecs));
+    }
+    printf("\r\n");
+  }
+
+
+  printf("\r\n# Compressing 64-bit numbers with uniform random bits between n and m\r\n");
+  printf("# Each column represent \"avg bits per number\"\r\n");
+  printf("#%-15s", "Algo / bits");
+  for (TestSuite tr : tests)
+    printf("  %2d - %2d", tr.minBits, tr.maxBits);
+  printf("\r\n");
+
+  for (int j = 0; j < tests.front().results.size(); ++j) {
+    printf("%-16s", tests.front().results[j].algorithmName);
+    for (int i = 0; i < tests.size(); ++i) {
+      TestResult results = tests[i].results[j];
+      printf(" %8.2f", results.outputBytes/(1.0*N));
     }
     printf("\r\n");
   }
