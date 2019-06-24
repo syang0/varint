@@ -28,7 +28,7 @@
 using namespace std;
 
 // How many uint64_t numbers in the vector we're compressing.
-const size_t N = 10000000;
+const size_t N = 1000000;
 
 /**
  * Generate n log-uniform random numbers with maximum value
@@ -166,7 +166,7 @@ TestResult do_libz(const uint64_t *numbers,
   auto after = high_resolution_clock::now();
   double encode_secs = duration_cast<nanoseconds>(after - before).count()/1.0e9;
 
-  std::string name = "gzip-" + std::to_string(level);
+  std::string name = "libz-" + std::to_string(level);
   return {name, encode_secs, 0.0, inputBytes, compressedSize};
 }
 
@@ -233,6 +233,7 @@ int main(int argc, const char *argv[]) {
 
     numbers = gen_log_uniform(0, i);
     std::vector<TestResult> randomRun;
+    printf("# Doing uniform up to %d bits\r\n", i);
     randomRun.push_back(do_codec(prefix_codec, numbers, scratch));
     randomRun.push_back(do_codec(leb128_codec, numbers, scratch));
     randomRun.push_back(do_codec(lesqlite2_codec, numbers, scratch));
@@ -250,6 +251,7 @@ int main(int argc, const char *argv[]) {
 
     numbers = gen_log_uniform(i-8, i);
     std::vector<TestResult> randomRun;
+    printf("# Doing range between %d and %d bits\r\n", i-8, i);
     randomRun.push_back(do_codec(prefix_codec, numbers, scratch));
     randomRun.push_back(do_codec(leb128_codec, numbers, scratch));
     randomRun.push_back(do_codec(lesqlite2_codec, numbers, scratch));
