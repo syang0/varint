@@ -1,3 +1,6 @@
 [submodule "NanoLog"]
 	path = NanoLog
 	url = git@github.com:PlatformLab/NanoLog.git
+[submodule "snappy"]
+	path = snappy
+	url = git@github.com:google/snappy.git
