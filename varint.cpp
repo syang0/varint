@@ -20,6 +20,7 @@
 #include <cstdlib>
 #include <random>
 
+#include "./snappy/snappy.h"
 #include "zlib.h"
 
 #include "compiler.h"
@@ -133,7 +134,8 @@ TestResult do_codec(const codec_descriptor &codec,
 }
 
 /**
- * Compresses an array of numbers using libz's
+ * Compresses an array of numbers using traditional dictionary
+ * based algorithms
  *
  * \param numbers
  *    Input compression array
@@ -146,28 +148,55 @@ TestResult do_codec(const codec_descriptor &codec,
  * \param level
  *    gzip compression level [0,9]
  */
-TestResult do_libz(const uint64_t *numbers,
-                      size_t inputBytes,
-                      uint8_t *scratch,
-                      size_t outputBytes,
-                      int level)
+std::vector<TestResult> do_dictionary_compress(
+                            const uint64_t *numbers,
+                            const size_t inputBytes,
+                            uint8_t *scratch,
+                            size_t outputBytes,
+                            std::vector<int> levels)
 {
-  uint64_t compressedSize = outputBytes;
-  compress2(scratch, &compressedSize,
-              reinterpret_cast<const Bytef*>(numbers), inputBytes,
-              level); // Warmup decode
-
   using namespace chrono;
+  std::vector<TestResult> results;
+
+  uint64_t compressedSize = outputBytes;
+  snappy::RawCompress((const char *) numbers,
+                          inputBytes,
+                          (char *) scratch,
+                          &compressedSize); // warmup
+
   auto before = high_resolution_clock::now();
   compressedSize = outputBytes;
-  compress2(scratch, &compressedSize,
-              reinterpret_cast<const Bytef*>(numbers), inputBytes,
-              level); // Warmup decode
+  snappy::RawCompress((const char *) numbers,
+                          inputBytes,
+                          (char *) scratch,
+                          &compressedSize);
   auto after = high_resolution_clock::now();
   double encode_secs = duration_cast<nanoseconds>(after - before).count()/1.0e9;
 
-  std::string name = "libz-" + std::to_string(level);
-  return {name, encode_secs, 0.0, inputBytes, compressedSize};
+  std::string name = "snappy";
+  results.push_back({name, encode_secs, 0.0, inputBytes, compressedSize});
+
+  for (int level : levels) {
+    uint64_t compressedSize = outputBytes;
+    compress2(scratch, &compressedSize,
+                reinterpret_cast<const Bytef*>(numbers),
+                inputBytes,
+                level); // Warmup
+
+    auto before = high_resolution_clock::now();
+    compressedSize = outputBytes;
+    compress2(scratch, &compressedSize,
+                reinterpret_cast<const Bytef*>(numbers),
+                inputBytes,
+                level); // Warmup decode
+    auto after = high_resolution_clock::now();
+    double encode_secs = duration_cast<nanoseconds>(after - before).count()/1.0e9;
+
+    std::string name = "gzip-" + std::to_string(level);
+    results.push_back({name, encode_secs, 0.0, inputBytes, compressedSize});
+  }
+
+  return results;
 }
 
 void printResults(std::vector<TestSuite> tests) {
@@ -239,8 +268,13 @@ int main(int argc, const char *argv[]) {
     randomRun.push_back(do_codec(lesqlite2_codec, numbers, scratch));
     randomRun.push_back(do_codec(lesqlite_codec, numbers, scratch));
     randomRun.push_back(do_codec(nanolog_codec, numbers, scratch));
-    randomRun.push_back(do_libz(numbers.data(), numbers.size()*sizeof(numbers.front()), scratch, allocSize, 1));
-    randomRun.push_back(do_libz(numbers.data(), numbers.size()*sizeof(numbers.front()), scratch, allocSize, 9));
+    std::vector<TestResult> dictResults =  do_dictionary_compress(
+                                                  numbers.data(),
+                                                  numbers.size()*sizeof(numbers.front()),
+                                                  scratch,
+                                                  allocSize,
+                                                  {1, 6, 9});
+    randomRun.insert(randomRun.end(), dictResults.begin(), dictResults.end());
     randomUpTo.push_back({0, i,randomRun});
   }
 
@@ -257,8 +291,13 @@ int main(int argc, const char *argv[]) {
     randomRun.push_back(do_codec(lesqlite2_codec, numbers, scratch));
     randomRun.push_back(do_codec(lesqlite_codec, numbers, scratch));
     randomRun.push_back(do_codec(nanolog_codec, numbers, scratch));
-    randomRun.push_back(do_libz(numbers.data(), numbers.size()*sizeof(numbers.front()), scratch, allocSize, 1));
-    randomRun.push_back(do_libz(numbers.data(), numbers.size()*sizeof(numbers.front()), scratch, allocSize, 9));
+    std::vector<TestResult> dictResults =  do_dictionary_compress(
+                                                  numbers.data(),
+                                                  numbers.size()*sizeof(numbers.front()),
+                                                  scratch,
+                                                  allocSize,
+                                                  {1, 6, 9});
+    randomRun.insert(randomRun.end(), dictResults.begin(), dictResults.end());
 
     randomBetween.push_back({i-8, i, randomRun});
   }
